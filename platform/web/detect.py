@@ -79,6 +79,7 @@ def get_flags():
         "target": "template_debug",
         "builtin_pcre2_with_jit": False,
         "vulkan": False,
+        "webgpu": False,
         # Embree is heavy and requires too much memory (GH-70621).
         "module_raycast_enabled": False,
         # Use -Os to prioritize optimizing for reduced file size. This is
@@ -256,6 +257,10 @@ def configure(env: "SConsEnvironment"):
         # Disables the use of *glGetProcAddress() which is inefficient.
         # See https://emscripten.org/docs/tools_reference/settings_reference.html#gl-enable-get-proc-address
         env.Append(LINKFLAGS=["-sGL_ENABLE_GET_PROC_ADDRESS=0"])
+
+    if env["webgpu"]:
+        env.AppendUnique(CPPDEFINES=["WEBGPU_ENABLED"])
+        env.Append(LINKFLAGS=["-sUSE_WEBGPU=1"])
 
     if env["javascript_eval"]:
         env.Append(CPPDEFINES=["JAVASCRIPT_EVAL_ENABLED"])

@@ -1,0 +1,8 @@
+Import('env')
+
+env_webgpu = env.Clone()
+
+# WebGPU driver files
+driver_obj = []
+env_webgpu.add_source_files(driver_obj, "*.cpp")
+env.drivers_sources += driver_obj
