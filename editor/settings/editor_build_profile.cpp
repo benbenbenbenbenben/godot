@@ -60,6 +60,7 @@ const char *EditorBuildProfile::build_option_identifiers[BUILD_OPTION_MAX] = {
 	"vulkan",
 	"d3d12",
 	"metal",
+    "webgpu",
 	"opengl3",
 	"disable_physics_2d",
 	"module_godot_physics_2d_enabled",
@@ -118,8 +119,9 @@ const bool EditorBuildProfile::build_option_disable_values[BUILD_OPTION_MAX] = {
 	false, // VULKAN
 	false, // D3D12
 	false, // METAL
+    false, // WEBGPU
 	false, // OPENGL
-	true, // PHYSICS_2D
+	false, // PHYSICS_2D
 	false, // PHYSICS_GODOT_2D
 	true, // PHYSICS_3D
 	false, // PHYSICS_GODOT_3D
@@ -175,6 +177,7 @@ const EditorBuildProfile::BuildOptionCategory EditorBuildProfile::build_option_c
 	BUILD_OPTION_CATEGORY_GRAPHICS, // VULKAN
 	BUILD_OPTION_CATEGORY_GRAPHICS, // D3D12
 	BUILD_OPTION_CATEGORY_GRAPHICS, // METAL
+    BUILD_OPTION_CATEGORY_GRAPHICS, // WEBGPU
 	BUILD_OPTION_CATEGORY_GRAPHICS, // OPENGL
 	BUILD_OPTION_CATEGORY_PHYSICS, // PHYSICS_2D
 	BUILD_OPTION_CATEGORY_PHYSICS, // PHYSICS_GODOT_2D
@@ -216,6 +219,10 @@ const HashMap<EditorBuildProfile::BuildOption, LocalVector<EditorBuildProfile::B
 			BUILD_OPTION_FORWARD_RENDERER,
 			BUILD_OPTION_MOBILE_RENDERER,
 	} },
+    { BUILD_OPTION_WEBGPU, {
+            BUILD_OPTION_FORWARD_RENDERER,
+            BUILD_OPTION_MOBILE_RENDERER,
+    } },
 	{ BUILD_OPTION_PHYSICS_GODOT_2D, {
 			BUILD_OPTION_PHYSICS_2D,
 	} },
@@ -668,6 +675,11 @@ EditorBuildProfile::EditorBuildProfile() {
 		{ "rendering/rendering_device/driver.macos", { "metal" } },
 	};
 	build_option_settings.insert(BUILD_OPTION_METAL, settings_metal);
+    HashMap<String, LocalVector<Variant>> settings_webgpu = {
+            { "rendering/rendering_device/driver", { "webgpu" } },
+            { "rendering/rendering_device/driver.web", { "webgpu" } },
+    };
+    build_option_settings.insert(BUILD_OPTION_WEBGPU, settings_webgpu);
 	HashMap<String, LocalVector<Variant>> settings_opengl = {
 		{ "rendering/renderer/rendering_method", { "gl_compatibility" } },
 		{ "rendering/renderer/rendering_method.mobile", { "gl_compatibility" } },
