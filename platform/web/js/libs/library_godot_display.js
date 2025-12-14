@@ -522,6 +522,12 @@ const GodotDisplay = {
 		return false;
 	},
 
+	godot_js_display_has_webgpu__proxy: 'sync',
+	godot_js_display_has_webgpu__sig: 'i',
+	godot_js_display_has_webgpu: function () {
+		return !!navigator.gpu;
+	},
+
 	/*
 	 * Canvas
 	 */
