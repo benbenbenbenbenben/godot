@@ -2,6 +2,15 @@
 
 #include "servers/rendering/rendering_device_driver.h"
 #include "servers/rendering/rendering_context_driver.h"
+#include "core/templates/hash_map.h"
+#include "core/templates/paged_allocator.h"
+
+#ifdef __EMSCRIPTEN__
+#include <webgpu/webgpu.h>
+#else
+// Forward declare handles for non-Emscripten builds
+typedef struct WGPUBufferImpl* WGPUBuffer;
+#endif
 
 class RenderingContextDriverWebGPU;
 
@@ -11,6 +20,16 @@ class RenderingDeviceDriverWebGPU : public RenderingDeviceDriver {
 	RenderingDeviceDriver::MultiviewCapabilities multiview_capabilities;
 	RenderingDeviceDriver::FragmentShadingRateCapabilities fragment_shading_rate_capabilities;
 	RenderingDeviceDriver::FragmentDensityMapCapabilities fragment_density_map_capabilities;
+
+	struct WebGPUBuffer {
+		WGPUBuffer handle = nullptr;
+		uint64_t size = 0;
+		// For CPU writable buffers that we need to map synchronously
+		uint8_t *cpu_staging_ptr = nullptr;
+		bool is_cpu_writable = false;
+	};
+
+	PagedAllocator<WebGPUBuffer> buffer_allocator;
 	
 public:
 	RenderingDeviceDriverWebGPU(RenderingContextDriverWebGPU *p_context_driver);

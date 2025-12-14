@@ -50,32 +50,39 @@ static WGPUBufferUsageFlags _get_buffer_usage(BitField<RenderingDeviceDriver::Bu
 
 RDD::BufferID RenderingDeviceDriverWebGPU::buffer_create(uint64_t p_size, BitField<BufferUsageBits> p_usage, MemoryAllocationType p_allocation_type, uint64_t p_frames_drawn) {
 #ifdef __EMSCRIPTEN__
+	WebGPUBuffer *buffer_state = buffer_allocator.alloc();
+	if (!buffer_state) {
+		return BufferID();
+	}
+	
+	buffer_state->size = p_size;
+	buffer_state->is_cpu_writable = (p_allocation_type == MEMORY_ALLOCATION_TYPE_CPU); // Simplified check, might need to check usage bits too.
+
 	WGPUBufferDescriptor desc = {};
 	desc.label = nullptr;
 	desc.usage = _get_buffer_usage(p_usage);
-	desc.size = p_size;
-	desc.mappedAtCreation = false;
 	
-	if (p_allocation_type == MEMORY_ALLOCATION_TYPE_CPU) {
-		// In WebGPU, to be CPU mappable, it needs MapRead or MapWrite.
-		// Godot expects to map.
-		// If it's CPU allocation, it likely implies it will be mapped.
-		// However, Godot separates usage bits.
-		// Ideally we should check if p_usage has TRANSFER bits?
-		// For simple mapping, assume CopySrc/Dst + MapRead/Write?
-		// This logic needs refinement based on Godot's specific mapping usage.
-		// For now, let's assume we handle map via staging buffers if needed, or if usage allows mapping.
-		
-		// If Godot requests CPU memory, it usually intends to map it.
-		// But WGPU requires MapRead/Write usage.
-		// Let's defer strict validation.
+	// If we are emulating mapping, we need CopyDst to be able to upload data via queueWriteBuffer
+	if (buffer_state->is_cpu_writable) {
+		desc.usage |= WGPUBufferUsage_CopyDst;
+		buffer_state->cpu_staging_ptr = (uint8_t *)memalloc(p_size);
+	} else {
+		buffer_state->cpu_staging_ptr = nullptr;
 	}
 
-	WGPUDevice device = context_driver->get_wgpu_device();
-	if (!device) return BufferID();
+	desc.size = p_size;
+	desc.mappedAtCreation = false; // We use our own staging buffer for sync mapping
 
-	WGPUBuffer buffer = wgpuDeviceCreateBuffer(device, &desc);
-	return BufferID((uint64_t)buffer);
+	WGPUDevice device = context_driver->get_wgpu_device();
+	if (!device) {
+		if (buffer_state->cpu_staging_ptr) memfree(buffer_state->cpu_staging_ptr);
+		buffer_allocator.free(buffer_state);
+		return BufferID();
+	}
+
+	buffer_state->handle = wgpuDeviceCreateBuffer(device, &desc);
+	
+	return BufferID(buffer_state);
 #else
 	return BufferID();
 #endif
@@ -87,19 +94,25 @@ bool RenderingDeviceDriverWebGPU::buffer_set_texel_format(BufferID p_buffer, Dat
 
 void RenderingDeviceDriverWebGPU::buffer_free(BufferID p_buffer) {
 #ifdef __EMSCRIPTEN__
-	WGPUBuffer buffer = (WGPUBuffer)p_buffer.id;
-	if (buffer) {
-		wgpuBufferDestroy(buffer);
-		wgpuBufferRelease(buffer);
+	WebGPUBuffer *buffer_state = (WebGPUBuffer *)p_buffer.id;
+	if (buffer_state) {
+		if (buffer_state->handle) {
+			wgpuBufferDestroy(buffer_state->handle);
+			wgpuBufferRelease(buffer_state->handle);
+		}
+		if (buffer_state->cpu_staging_ptr) {
+			memfree(buffer_state->cpu_staging_ptr);
+		}
+		buffer_allocator.free(buffer_state);
 	}
 #endif
 }
 
 uint64_t RenderingDeviceDriverWebGPU::buffer_get_allocation_size(BufferID p_buffer) {
 #ifdef __EMSCRIPTEN__
-	WGPUBuffer buffer = (WGPUBuffer)p_buffer.id;
-	if (buffer) {
-		return wgpuBufferGetSize(buffer);
+	WebGPUBuffer *buffer_state = (WebGPUBuffer *)p_buffer.id;
+	if (buffer_state) {
+		return buffer_state->size;
 	}
 #endif
 	return 0;
@@ -107,19 +120,9 @@ uint64_t RenderingDeviceDriverWebGPU::buffer_get_allocation_size(BufferID p_buff
 
 uint8_t *RenderingDeviceDriverWebGPU::buffer_map(BufferID p_buffer) {
 #ifdef __EMSCRIPTEN__
-	WGPUBuffer buffer = (WGPUBuffer)p_buffer.id;
-	if (buffer) {
-		// buffer map is Async in WebGPU. Godot expects Sync.
-		// This is the biggest blocker.
-		// We must use wgpuBufferGetMappedRange, but that requires the buffer to be mapped.
-		// To map it, we call wgpuBufferMapAsync.
-		// Since we can't block, we might have to rely on Emscripten's Asyncify or
-		// use MappedAtCreation for new buffers.
-		// But for existing buffers?
-		
-		// This needs careful design.
-		// For now, return nullptr.
-		return nullptr; 
+	WebGPUBuffer *buffer_state = (WebGPUBuffer *)p_buffer.id;
+	if (buffer_state && buffer_state->is_cpu_writable) {
+		return buffer_state->cpu_staging_ptr;
 	}
 #endif
 	return nullptr;
@@ -127,9 +130,13 @@ uint8_t *RenderingDeviceDriverWebGPU::buffer_map(BufferID p_buffer) {
 
 void RenderingDeviceDriverWebGPU::buffer_unmap(BufferID p_buffer) {
 #ifdef __EMSCRIPTEN__
-	WGPUBuffer buffer = (WGPUBuffer)p_buffer.id;
-	if (buffer) {
-		wgpuBufferUnmap(buffer);
+	WebGPUBuffer *buffer_state = (WebGPUBuffer *)p_buffer.id;
+	if (buffer_state && buffer_state->is_cpu_writable && buffer_state->handle) {
+		// Upload the data from staging pointer to the GPU buffer
+		WGPUDevice device = context_driver->get_wgpu_device();
+		WGPUQueue queue = wgpuDeviceGetQueue(device);
+		wgpuQueueWriteBuffer(queue, buffer_state->handle, 0, buffer_state->cpu_staging_ptr, buffer_state->size);
+		// Note: wgpuQueueWriteBuffer is synchronous-ish (copies data immediately), so it's safe.
 	}
 #endif
 }
