@@ -10,6 +10,9 @@
 #else
 // Forward declare handles for non-Emscripten builds
 typedef struct WGPUBufferImpl* WGPUBuffer;
+typedef struct WGPUTextureImpl* WGPUTexture;
+typedef struct WGPUTextureViewImpl* WGPUTextureView;
+typedef struct WGPUSamplerImpl* WGPUSampler;
 #endif
 
 class RenderingContextDriverWebGPU;
@@ -29,7 +32,26 @@ class RenderingDeviceDriverWebGPU : public RenderingDeviceDriver {
 		bool is_cpu_writable = false;
 	};
 
+	struct WebGPUTexture {
+		WGPUTexture handle = nullptr;
+		WGPUTextureView view = nullptr;
+		bool is_own_handle = true;
+		// Initialized with 0 or valid values
+		uint32_t width = 0;
+		uint32_t height = 0;
+		uint32_t depth = 0;
+		uint32_t mips = 0;
+		uint32_t layers = 0;
+		WGPUTextureFormat format = WGPUTextureFormat_Undefined; // Use Undefined as 0?
+	};
+
+	struct WebGPUSampler {
+		WGPUSampler handle = nullptr;
+	};
+
 	PagedAllocator<WebGPUBuffer> buffer_allocator;
+	PagedAllocator<WebGPUTexture> texture_allocator;
+	PagedAllocator<WebGPUSampler> sampler_allocator;
 	
 public:
 	RenderingDeviceDriverWebGPU(RenderingContextDriverWebGPU *p_context_driver);

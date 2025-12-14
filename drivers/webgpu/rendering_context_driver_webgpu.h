@@ -40,6 +40,7 @@ public:
 	virtual bool is_debug_utils_enabled() const override;
 
 	WGPUDevice get_wgpu_device() const { return wgpu_device; }
+	void set_wgpu_device(WGPUDevice p_device) { wgpu_device = p_device; }
 
 	RenderingContextDriverWebGPU();
 	virtual ~RenderingContextDriverWebGPU();

@@ -48,6 +48,114 @@ static WGPUBufferUsageFlags _get_buffer_usage(BitField<RenderingDeviceDriver::Bu
 }
 #endif
 
+static WGPUTextureFormat _get_wgpu_texture_format(RenderingDeviceDriver::DataFormat p_format) {
+	switch (p_format) {
+		case RenderingDeviceDriver::DATA_FORMAT_R8_UNORM: return WGPUTextureFormat_R8Unorm;
+		case RenderingDeviceDriver::DATA_FORMAT_R8_SNORM: return WGPUTextureFormat_R8Snorm;
+		case RenderingDeviceDriver::DATA_FORMAT_R8_UINT: return WGPUTextureFormat_R8Uint;
+		case RenderingDeviceDriver::DATA_FORMAT_R8_SINT: return WGPUTextureFormat_R8Sint;
+		
+		case RenderingDeviceDriver::DATA_FORMAT_R16_UINT: return WGPUTextureFormat_R16Uint;
+		case RenderingDeviceDriver::DATA_FORMAT_R16_SINT: return WGPUTextureFormat_R16Sint;
+		case RenderingDeviceDriver::DATA_FORMAT_R16_SFLOAT: return WGPUTextureFormat_R16Float;
+
+		case RenderingDeviceDriver::DATA_FORMAT_R8G8_UNORM: return WGPUTextureFormat_RG8Unorm;
+		case RenderingDeviceDriver::DATA_FORMAT_R8G8_SNORM: return WGPUTextureFormat_RG8Snorm;
+		case RenderingDeviceDriver::DATA_FORMAT_R8G8_UINT: return WGPUTextureFormat_RG8Uint;
+		case RenderingDeviceDriver::DATA_FORMAT_R8G8_SINT: return WGPUTextureFormat_RG8Sint;
+
+		case RenderingDeviceDriver::DATA_FORMAT_R16G16_UINT: return WGPUTextureFormat_RG16Uint;
+		case RenderingDeviceDriver::DATA_FORMAT_R16G16_SINT: return WGPUTextureFormat_RG16Sint;
+		case RenderingDeviceDriver::DATA_FORMAT_R16G16_SFLOAT: return WGPUTextureFormat_RG16Float;
+
+		case RenderingDeviceDriver::DATA_FORMAT_R32_UINT: return WGPUTextureFormat_R32Uint;
+		case RenderingDeviceDriver::DATA_FORMAT_R32_SINT: return WGPUTextureFormat_R32Sint;
+		case RenderingDeviceDriver::DATA_FORMAT_R32_SFLOAT: return WGPUTextureFormat_R32Float;
+
+		case RenderingDeviceDriver::DATA_FORMAT_R32G32_UINT: return WGPUTextureFormat_RG32Uint;
+		case RenderingDeviceDriver::DATA_FORMAT_R32G32_SINT: return WGPUTextureFormat_RG32Sint;
+		case RenderingDeviceDriver::DATA_FORMAT_R32G32_SFLOAT: return WGPUTextureFormat_RG32Float;
+
+		case RenderingDeviceDriver::DATA_FORMAT_R8G8B8A8_UNORM: return WGPUTextureFormat_RGBA8Unorm;
+		case RenderingDeviceDriver::DATA_FORMAT_R8G8B8A8_SNORM: return WGPUTextureFormat_RGBA8Snorm;
+		case RenderingDeviceDriver::DATA_FORMAT_R8G8B8A8_UINT: return WGPUTextureFormat_RGBA8Uint;
+		case RenderingDeviceDriver::DATA_FORMAT_R8G8B8A8_SINT: return WGPUTextureFormat_RGBA8Sint;
+		case RenderingDeviceDriver::DATA_FORMAT_R8G8B8A8_SRGB: return WGPUTextureFormat_RGBA8UnormSrgb;
+
+		case RenderingDeviceDriver::DATA_FORMAT_B8G8R8A8_UNORM: return WGPUTextureFormat_BGRA8Unorm;
+		case RenderingDeviceDriver::DATA_FORMAT_B8G8R8A8_SRGB: return WGPUTextureFormat_BGRA8UnormSrgb;
+
+		case RenderingDeviceDriver::DATA_FORMAT_R16G16B16A16_UINT: return WGPUTextureFormat_RGBA16Uint;
+		case RenderingDeviceDriver::DATA_FORMAT_R16G16B16A16_SINT: return WGPUTextureFormat_RGBA16Sint;
+		case RenderingDeviceDriver::DATA_FORMAT_R16G16B16A16_SFLOAT: return WGPUTextureFormat_RGBA16Float;
+
+		case RenderingDeviceDriver::DATA_FORMAT_R32G32B32A32_UINT: return WGPUTextureFormat_RGBA32Uint;
+		case RenderingDeviceDriver::DATA_FORMAT_R32G32B32A32_SINT: return WGPUTextureFormat_RGBA32Sint;
+		case RenderingDeviceDriver::DATA_FORMAT_R32G32B32A32_SFLOAT: return WGPUTextureFormat_RGBA32Float;
+
+		case RenderingDeviceDriver::DATA_FORMAT_D32_SFLOAT: return WGPUTextureFormat_Depth32Float;
+		case RenderingDeviceDriver::DATA_FORMAT_D16_UNORM: return WGPUTextureFormat_Depth16Unorm;
+		case RenderingDeviceDriver::DATA_FORMAT_D24_UNORM_S8_UINT: return WGPUTextureFormat_Depth24PlusStencil8;
+		
+		// TODO: Add compressed formats (BC, ASTC if supported/enabled)
+		default: return WGPUTextureFormat_Undefined;
+	}
+}
+
+static WGPUTextureUsageFlags _get_wgpu_texture_usage(BitField<RenderingDeviceDriver::TextureUsageBits> p_usage) {
+	WGPUTextureUsageFlags flags = WGPUTextureUsage_None;
+	
+	if (p_usage.has_flag(RenderingDeviceDriver::TEXTURE_USAGE_SAMPLING_BIT)) flags |= WGPUTextureUsage_TextureBinding;
+	if (p_usage.has_flag(RenderingDeviceDriver::TEXTURE_USAGE_COLOR_ATTACHMENT_BIT)) flags |= WGPUTextureUsage_RenderAttachment;
+	if (p_usage.has_flag(RenderingDeviceDriver::TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)) flags |= WGPUTextureUsage_RenderAttachment;
+	if (p_usage.has_flag(RenderingDeviceDriver::TEXTURE_USAGE_STORAGE_BIT)) flags |= WGPUTextureUsage_StorageBinding;
+	if (p_usage.has_flag(RenderingDeviceDriver::TEXTURE_USAGE_CAN_COPY_FROM_BIT)) flags |= WGPUTextureUsage_CopySrc;
+	if (p_usage.has_flag(RenderingDeviceDriver::TEXTURE_USAGE_CAN_COPY_TO_BIT)) flags |= WGPUTextureUsage_CopyDst;
+	
+	return flags;
+}
+
+static WGPUTextureDimension _get_wgpu_texture_dimension(RenderingDeviceDriver::TextureType p_type) {
+	switch (p_type) {
+		case RenderingDeviceDriver::TEXTURE_TYPE_1D:
+		case RenderingDeviceDriver::TEXTURE_TYPE_1D_ARRAY:
+			return WGPUTextureDimension_1D;
+		case RenderingDeviceDriver::TEXTURE_TYPE_2D:
+		case RenderingDeviceDriver::TEXTURE_TYPE_2D_ARRAY:
+		case RenderingDeviceDriver::TEXTURE_TYPE_CUBE:
+		case RenderingDeviceDriver::TEXTURE_TYPE_CUBE_ARRAY:
+			return WGPUTextureDimension_2D;
+		case RenderingDeviceDriver::TEXTURE_TYPE_3D:
+			return WGPUTextureDimension_3D;
+		default:
+			return WGPUTextureDimension_2D;
+	}
+}
+
+static WGPUTextureViewDimension _get_wgpu_texture_view_dimension(RenderingDeviceDriver::TextureType p_type) {
+	switch (p_type) {
+		case RenderingDeviceDriver::TEXTURE_TYPE_1D: return WGPUTextureViewDimension_1D;
+		case RenderingDeviceDriver::TEXTURE_TYPE_1D_ARRAY: return WGPUTextureViewDimension_1D; // WebGPU doesn't explicitly distinguish 1D Array view dim? Wrapper says WGPUTextureViewDimension_1D
+		case RenderingDeviceDriver::TEXTURE_TYPE_2D: return WGPUTextureViewDimension_2D;
+		case RenderingDeviceDriver::TEXTURE_TYPE_2D_ARRAY: return WGPUTextureViewDimension_2DArray;
+		case RenderingDeviceDriver::TEXTURE_TYPE_CUBE: return WGPUTextureViewDimension_Cube;
+		case RenderingDeviceDriver::TEXTURE_TYPE_CUBE_ARRAY: return WGPUTextureViewDimension_CubeArray;
+		case RenderingDeviceDriver::TEXTURE_TYPE_3D: return WGPUTextureViewDimension_3D;
+		default: return WGPUTextureViewDimension_2D;
+	}
+}
+
+static uint32_t _get_wgpu_sample_count(RenderingDeviceDriver::TextureSamples p_samples) {
+	switch (p_samples) {
+		case RenderingDeviceDriver::TEXTURE_SAMPLES_1: return 1;
+		case RenderingDeviceDriver::TEXTURE_SAMPLES_2: return 2; // WebGPU usually only supports 1 or 4?
+		case RenderingDeviceDriver::TEXTURE_SAMPLES_4: return 4;
+		case RenderingDeviceDriver::TEXTURE_SAMPLES_8: return 8; // Maybe not supported
+		case RenderingDeviceDriver::TEXTURE_SAMPLES_16: return 16;
+		default: return 1;
+	}
+}
+
 RDD::BufferID RenderingDeviceDriverWebGPU::buffer_create(uint64_t p_size, BitField<BufferUsageBits> p_usage, MemoryAllocationType p_allocation_type, uint64_t p_frames_drawn) {
 #ifdef __EMSCRIPTEN__
 	WebGPUBuffer *buffer_state = buffer_allocator.alloc();
@@ -154,7 +262,56 @@ uint64_t RenderingDeviceDriverWebGPU::buffer_get_device_address(BufferID p_buffe
 }
 
 RDD::TextureID RenderingDeviceDriverWebGPU::texture_create(const TextureFormat &p_format, const TextureView &p_view) {
+#ifdef __EMSCRIPTEN__
+	WebGPUTexture *tex = texture_allocator.alloc();
+	if (!tex) return TextureID();
+
+	tex->is_own_handle = true;
+	tex->width = p_format.width;
+	tex->height = p_format.height;
+	tex->depth = p_format.depth;
+	tex->mips = p_format.mipmaps;
+	tex->layers = p_format.array_layers;
+	tex->format = _get_wgpu_texture_format(p_format.format);
+	
+	WGPUTextureDescriptor desc = {};
+	desc.usage = _get_wgpu_texture_usage(p_format.usage_bits);
+	desc.dimension = _get_wgpu_texture_dimension(p_format.texture_type);
+	desc.size.width = p_format.width;
+	desc.size.height = p_format.height;
+	desc.size.depthOrArrayLayers = (p_format.texture_type == TEXTURE_TYPE_3D) ? p_format.depth : p_format.array_layers;
+	desc.format = tex->format;
+	desc.mipLevelCount = p_format.mipmaps;
+	desc.sampleCount = _get_wgpu_sample_count(p_format.samples); // Helper needed
+
+    if (desc.format == WGPUTextureFormat_Undefined) {
+        texture_allocator.free(tex);
+        return TextureID();
+    }
+	
+	tex->handle = wgpuDeviceCreateTexture(context_driver->get_wgpu_device(), &desc);
+	
+    if (!tex->handle) {
+        texture_allocator.free(tex);
+        return TextureID();
+    }
+
+	// Create default view
+	WGPUTextureViewDescriptor view_desc = {};
+	view_desc.format = tex->format;
+	view_desc.dimension = _get_wgpu_texture_view_dimension(p_format.texture_type);
+	view_desc.baseMipLevel = 0;
+	view_desc.mipLevelCount = p_format.mipmaps;
+	view_desc.baseArrayLayer = 0;
+	view_desc.arrayLayerCount = p_format.array_layers;
+    view_desc.aspect = WGPUTextureAspect_All; 
+
+	tex->view = wgpuTextureCreateView(tex->handle, &view_desc);
+	
+	return TextureID(tex);
+#else
 	return TextureID();
+#endif
 }
 
 RDD::TextureID RenderingDeviceDriverWebGPU::texture_create_from_extension(uint64_t p_native_texture, TextureType p_type, DataFormat p_format, uint32_t p_array_layers, bool p_depth_stencil, uint32_t p_mipmaps) {
@@ -162,14 +319,33 @@ RDD::TextureID RenderingDeviceDriverWebGPU::texture_create_from_extension(uint64
 }
 
 RDD::TextureID RenderingDeviceDriverWebGPU::texture_create_shared(TextureID p_original_texture, const TextureView &p_view) {
+    // TODO: Implement valid shared views (aliasing)
 	return TextureID();
 }
 
 RDD::TextureID RenderingDeviceDriverWebGPU::texture_create_shared_from_slice(TextureID p_original_texture, const TextureView &p_view, TextureSliceType p_slice_type, uint32_t p_layer, uint32_t p_layers, uint32_t p_mipmap, uint32_t p_mipmaps) {
+    // TODO: Implement valid shared views (aliasing)
 	return TextureID();
 }
 
 void RenderingDeviceDriverWebGPU::texture_free(TextureID p_texture) {
+#ifdef __EMSCRIPTEN__
+	WebGPUTexture *tex = (WebGPUTexture *)p_texture.id;
+    if (tex) {
+        if (tex->view) {
+            wgpuTextureViewRelease(tex->view);
+        }
+        if (tex->is_own_handle && tex->handle) {
+            wgpuTextureDestroy(tex->handle);
+            wgpuTextureRelease(tex->handle);
+        } else if (tex->handle) {
+            // Shared handle, just release reference? 
+            // In WGPU release decrements refcount.
+             wgpuTextureRelease(tex->handle);
+        }
+        texture_allocator.free(tex);
+    }
+#endif
 }
 
 uint64_t RenderingDeviceDriverWebGPU::texture_get_allocation_size(TextureID p_texture) {
@@ -191,11 +367,81 @@ bool RenderingDeviceDriverWebGPU::texture_can_make_shared_with_format(TextureID 
 	return false;
 }
 
+#ifdef __EMSCRIPTEN__
+static WGPUFilterMode _get_wgpu_filter_mode(RenderingDeviceDriver::SamplerFilter p_filter) {
+    if (p_filter == RenderingDeviceDriver::SAMPLER_FILTER_LINEAR) return WGPUFilterMode_Linear;
+    return WGPUFilterMode_Nearest;
+}
+
+static WGPUMipmapFilterMode _get_wgpu_mipmap_filter_mode(RenderingDeviceDriver::SamplerFilter p_filter) {
+    if (p_filter == RenderingDeviceDriver::SAMPLER_FILTER_LINEAR) return WGPUMipmapFilterMode_Linear;
+    return WGPUMipmapFilterMode_Nearest;
+}
+
+static WGPUAddressMode _get_wgpu_address_mode(RenderingDeviceDriver::SamplerRepeatMode p_mode) {
+    switch(p_mode) {
+        case RenderingDeviceDriver::SAMPLER_REPEAT_MODE_REPEAT: return WGPUAddressMode_Repeat;
+        case RenderingDeviceDriver::SAMPLER_REPEAT_MODE_MIRRORED_REPEAT: return WGPUAddressMode_MirrorRepeat;
+        case RenderingDeviceDriver::SAMPLER_REPEAT_MODE_CLAMP_TO_EDGE: return WGPUAddressMode_ClampToEdge;
+        case RenderingDeviceDriver::SAMPLER_REPEAT_MODE_CLAMP_TO_BORDER: return WGPUAddressMode_ClampToEdge; // Not supported, fallback
+        case RenderingDeviceDriver::SAMPLER_REPEAT_MODE_MIRROR_CLAMP_TO_EDGE: return WGPUAddressMode_ClampToEdge; // Not supported usually?
+        default: return WGPUAddressMode_ClampToEdge;
+    }
+}
+
+static WGPUCompareFunction _get_wgpu_compare_function(RenderingDeviceDriver::CompareOperator p_op) {
+    switch (p_op) {
+        case RenderingDeviceDriver::COMPARE_OP_NEVER: return WGPUCompareFunction_Never;
+        case RenderingDeviceDriver::COMPARE_OP_LESS: return WGPUCompareFunction_Less;
+        case RenderingDeviceDriver::COMPARE_OP_EQUAL: return WGPUCompareFunction_Equal;
+        case RenderingDeviceDriver::COMPARE_OP_LESS_OR_EQUAL: return WGPUCompareFunction_LessEqual;
+        case RenderingDeviceDriver::COMPARE_OP_GREATER: return WGPUCompareFunction_Greater;
+        case RenderingDeviceDriver::COMPARE_OP_NOT_EQUAL: return WGPUCompareFunction_NotEqual;
+        case RenderingDeviceDriver::COMPARE_OP_GREATER_OR_EQUAL: return WGPUCompareFunction_GreaterEqual;
+        case RenderingDeviceDriver::COMPARE_OP_ALWAYS: return WGPUCompareFunction_Always;
+        default: return WGPUCompareFunction_Always;
+    }
+}
+#endif
+
 RDD::SamplerID RenderingDeviceDriverWebGPU::sampler_create(const SamplerState &p_state) {
+#ifdef __EMSCRIPTEN__
+    WebGPUSampler *sampler = sampler_allocator.alloc();
+    if (!sampler) return SamplerID();
+
+    WGPUSamplerDescriptor desc = {};
+    desc.magFilter = _get_wgpu_filter_mode(p_state.mag_filter);
+    desc.minFilter = _get_wgpu_filter_mode(p_state.min_filter);
+    desc.mipmapFilter = _get_wgpu_mipmap_filter_mode(p_state.mip_filter);
+    desc.addressModeU = _get_wgpu_address_mode(p_state.repeat_u);
+    desc.addressModeV = _get_wgpu_address_mode(p_state.repeat_v);
+    desc.addressModeW = _get_wgpu_address_mode(p_state.repeat_w);
+    desc.lodMinClamp = p_state.min_lod;
+    desc.lodMaxClamp = p_state.max_lod;
+    if (p_state.enable_compare) {
+        desc.compare = _get_wgpu_compare_function(p_state.compare_op);
+    } else {
+        desc.compare = WGPUCompareFunction_Undefined;
+    }
+    desc.maxAnisotropy = p_state.use_anisotropy ? (uint16_t)p_state.anisotropy_max : 1;
+
+    sampler->handle = wgpuDeviceCreateSampler(context_driver->get_wgpu_device(), &desc);
+    return SamplerID(sampler);
+#else
 	return SamplerID();
+#endif
 }
 
 void RenderingDeviceDriverWebGPU::sampler_free(SamplerID p_sampler) {
+#ifdef __EMSCRIPTEN__
+    WebGPUSampler *sampler = (WebGPUSampler *)p_sampler.id;
+    if (sampler) {
+        if (sampler->handle) {
+            wgpuSamplerRelease(sampler->handle);
+        }
+        sampler_allocator.free(sampler);
+    }
+#endif
 }
 
 bool RenderingDeviceDriverWebGPU::sampler_is_format_supported_for_filter(DataFormat p_format, SamplerFilter p_filter) {
